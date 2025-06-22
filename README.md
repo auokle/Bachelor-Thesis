@@ -1,70 +1,96 @@
 # Bachelor Thesis
-This bachelor thesis is about the clustering of WHOOP data and finding the correlations between the clusters and survey data.
+
+This repository contains the code and data processing pipeline for a bachelor thesis focused on clustering WHOOP-derived physiological data and examining correlations between resulting clusters and self-reported mental health survey data.
 
 ## File Structure
 
-Short overview of the file structure:
+A brief overview of the directory structure:
 
-- clustering_plots
-- descriptive_statistics
-  - descriptive_statistics_plots
-- original_data
-- working_data
-  - cluster_labels
+- `clustering_plots/`
+- `descriptive_statistics/`
+  - `descriptive_statistics_plots/`
+- `original_data/`
+- `working_data/`
+  - `cluster_labels/`
 
-In original_data the following files have to be inserted before running the pipeline:
-- mhs_demographics_sorted.csv
-- mhs_sleep_sorted.csv
-- mhs_survey_sorted.csv
+Before running the pipeline, insert the following original data files into `original_data/`:
 
-## Pipeline
+- `mhs_demographics_sorted.csv`
+- `mhs_sleep_sorted.csv`
+- `mhs_survey_sorted.csv`
 
-Multiple files have a section with parameters on top of the file, these parameters are used to load and store the file under the appropriate filenames. The pipeline is tested for the UMAP dimensionality reduction and three clusters across all survey categories. This should only be seen as an overview, the full explanation can be found in the thesis.
+## Pipeline Overview
+
+Many files include a parameter section at the top to define filenames and output paths. The pipeline was developed for UMAP-based dimensionality reduction and three-cluster solutions across all survey categories. This README provides a high-level overview — for detailed methodology, please refer to the thesis document.
 
 ### 0. Preprocessing and Demographic Analysis
 
-Before running the pipeline some preliminary files have to be created.
+Run `working_data/data_processing_working_data.ipynb` to generate:
 
-Running working_data/data_processing_working_data.ipynb will create the following files:
-- working_data/mhs_sleep_ch.csv: The file with only the Swiss subpopulation of the whole mhs_sleep_sorted.csv file used throughout the pipeline.
-- working_data/mhs_survey_sorted_without_nan.csv: The file with all the survey data but without entries that have NaN values used throughout the pipeline.
-- working_data/sleep_intervals.csv: The file with sleep intervals used in the preliminary demographic analysis.
-- working_data/sleep_userid_first_last_day.csv: The file with dates of the first and last time a user recorded sleep used in the preliminary demographic analysis.
+- `mhs_sleep_ch.csv`: Subset of Swiss users.
+- `mhs_survey_sorted_without_nan.csv`: Survey data excluding entries with NaN values.
+- `sleep_intervals.csv`: Sleep intervals for demographic analysis.
+- `sleep_userid_first_last_day.csv`: First/last sleep records per user.
 
-Then the preliminary demographic analysis can be done by running all the .ipynb files in the descriptive_statistics folder.
+Demographic analyses can be performed by executing the `.ipynb` notebooks in the `descriptive_statistics/` folder.
 
 ### 1. Outlier Detection
 
-Running data_preprocessing_outlier_detection_v3.ipynb can be used to remove outliers visually and save the outlier-free file under working_data/mhs_sleep_ch_without_outliers.csv.
+Run `data_preprocessing_outlier_detection_v3.ipynb` to detect and visually remove outliers. The cleaned output is saved as:
 
-### 2. Create Weekly Data
+- `working_data/mhs_sleep_ch_without_outliers.csv`
 
-Running data_preprocessing_create_weekly.ipynb will create weekly datapoints from daily datapoints by aggregating them to a week and removing weeks with incomplete data. The resulting file is working_data/mhs_sleep_weekly.csv.
+### 2. Weekly Aggregation
+
+Run `data_preprocessing_create_weekly.ipynb` to convert daily data into weekly summaries. Incomplete weeks are removed. Output:
+
+- `working_data/mhs_sleep_weekly.csv`
 
 ### 3. Feature Generation
 
-Running data_preprocessing_create_features_v2.ipynb will create multiple features that capture the weekly data and store them under working_data/mhs_sleep_weekly_features.csv.
+Run `data_preprocessing_create_features_v2.ipynb` to compute derived weekly features from the aggregated data. Output:
+
+- `working_data/mhs_sleep_weekly_features.csv`
 
 ### 4. Feature Selection
 
-Running data_preprocessing_feature_selection_v5.ipynb will chose features based on a maximal threshold of correlation between features, a minimal variance and by a minimal threshold with each survey category total score. The resulting files are stored under:
-working_data/mhs_sleep_weekly_uncorr_features_correlation_threshold_{threshold}_{group_name}_{survey_category}.csv
-Where {threshold} is the threshold of the correlation between the features, {group_name} is the group of the gender, and {survey_category} is the corresponding survey category.
+Run `data_preprocessing_feature_selection_v5.ipynb` to select features based on:
+- Maximum inter-feature correlation threshold,
+- Minimum variance,
+- Minimum correlation with survey total score.
+
+Resulting files are named:
+`mhs_sleep_weekly_uncorr_features_correlation_threshold_{threshold}_{group_name}_{survey_category}.csv`
+
 
 ### 5. Dimensionality Reduction
 
-The file standardize_and_dim_red.py is called by main_caller_standardization_and_dim_red.ipynb, where it is possible to loop over several parameter combinations. It supports UMAP, PCA and TSNE, where only UMAP is fully tested in later pipeline stages. All files will be stored under working_data.
+Run `main_caller_standardization_and_dim_red.ipynb`, which calls `standardize_and_dim_red.py`. Supports UMAP, PCA, and t-SNE (only UMAP fully tested in later stages). Outputs are saved to `working_data/`.
 
 ### 6. Clustering
 
-Two clustering methods are supported: GMM and HAC. The files clustering_gmm_crossvalidation_v2.ipynb and clustering_HAC_crossvalidation.ipynb can be used to find the most suitable number of clusters by crossvalidation, where the plots have to be analysed manually and the number of clusters be defined for evaluation on a test set. This has to be done for each survey category individually and the corresponding labels of the whole dataset will be stored under working_data/cluster_labels.
+Clustering is supported via:
+- Gaussian Mixture Models (GMM): `clustering_gmm_crossvalidation_v2.ipynb`
+- Hierarchical Agglomerative Clustering (HAC): `clustering_HAC_crossvalidation.ipynb`
+
+Cross-validation plots are generated for manual selection of the optimal number of clusters (done separately for each survey category). Final cluster labels are saved in `working_data/cluster_labels/`.
 
 ### 7. Internal and External Validation
 
-The file external_validation_GMM_HAC.ipynb is used to generate the clustering plots on the full data for both methods, and comparing the methods visually by an overlay and via evaluation methods. Before comparing clusters should be aligned as close as possible by changing the cluster names.
+Run `external_validation_GMM_HAC.ipynb` to:
+- Generate cluster visualizations (GMM vs. HAC),
+- Visually and quantitatively compare clustering results.
 
-The file internal_validation_correlation_feature_cluster.ipynb will correlate the original selected features with the numberic values for the clusters by iterating over all permutations of the cluster assignments. For comparability the found cluster renamings of the external validation should be used in here. This has to be done for each clustering method individually.
+Before comparison, manually align clusters between methods by renaming for maximal overlap.
+
+Run `internal_validation_correlation_feature_cluster.ipynb` to:
+- Correlate features with cluster labels,
+- Iterate over all cluster label permutations to maximize correlation with survey scores.
+
+This should be run separately for each method (GMM and HAC) using the cluster label mappings established in external validation.
 
 ### 8. Survey-Cluster Evaluation
 
-The file correlation_feature_survey.ipynb will generate the demographic and survey total score distribution over the clusters. Then the correlation between the total scores and features, both adjusted for age, gender and BMI, will be generated.
+Run `correlation_feature_survey.ipynb` to:
+- Visualize demographic and survey score distributions across clusters,
+- Compute partial correlations (adjusted for age, gender, BMI) between features and survey total scores.
